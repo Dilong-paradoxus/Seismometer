@@ -21,7 +21,7 @@ def serialopen(port):
         except serial.SerialException:
             sleep(2)
 
-ser = serialopen('COM8')
+ser = serialopen('/dev/ttyACM0')
 ser.flushInput()
 
 #set maximum run time of program
