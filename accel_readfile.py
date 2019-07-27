@@ -172,6 +172,7 @@ quakeplottime = []
 quakeplotdist = []
 quakeplotmag = []
 quakeplotdepth = []
+quakeplotlogdepth = []
 detectablequakedist = []
 detectablequaketime = []
 for feature in data['features']:
@@ -206,6 +207,7 @@ for feature in data['features']:
     quakeplottime.append(seistime)
     quakeplotdist.append(seisdist)
     quakeplotmag.append(seismag)
+    quakeplotlogdepth.append(-np.log(quakedepth))
     quakeplotdepth.append(quakedepth)
 
 plt.figure(1)    
@@ -221,6 +223,12 @@ yyy = []
 zzz = np.linspace(quakeplottime[0],quakeplottime[-1],100)
 for row in xxx:
     yyy.append(2 * math.exp(2 * row))
+    
+xxx,zzz = np.meshgrid(xxx,zzz)
+fig = plt.figure()
+ax = fig.gca(projection='3d')
+surf = ax.plot_surface(xxx,yyy,zzz)
+
 
 plt.figure(3)
 plt.scatter(quakeplotmag,quakeplotdist,c=quakeplotmag)
@@ -231,8 +239,13 @@ plt.ylim(0,2000)
 plt.show
 
 fig = plt.figure()
+plt.title('Earthquakes during recording period')
 ax = Axes3D(fig)
-ax.scatter(quakeplottime,quakeplotdist,quakeplotmag,c=np.log(quakeplotdepth))
+ax.scatter(quakeplottime,quakeplotdist,quakeplotmag,c=quakeplotdepth,s=10)
+#s=quakeplotmag makes dots too small and hard to distinguish
+ax.set_ylabel('Distance (km)')
+ax.set_xlabel('Seconds since epoch')
+ax.set_zlabel('Magnitude')
 #ax.scatter(zzz,yyy,xxx)
 plt.show
 
