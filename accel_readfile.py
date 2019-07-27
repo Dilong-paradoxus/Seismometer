@@ -17,8 +17,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import math
 
-#r"D:\Nick\Python\*.csv"
-filename = max(glob.iglob(r"\\192.168.0.9\NASTOP_test\*.csv"), key=os.path.getctime) #get path of most recent data file
+filename = max(glob.iglob(r"D:\Nick\Python\*.csv"), key=os.path.getctime) #get path of most recent data file
 #filename = 
 #starttime_s = os.path.getctime(filename)
 starttime_s = os.path.getmtime(filename)
