@@ -9,6 +9,7 @@ import urllib.request
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import math
+import getseiscoords
 
 timesave = False
 
@@ -80,7 +81,7 @@ def plotquakes(start,end):
         earthquakecoords = feature['geometry']['coordinates'] 
         quakedepth = earthquakecoords[2]
         earthquakecoords = [earthquakecoords[1],earthquakecoords[0]] #remove depth
-        seiscoords = (47.7477899,-122.526889) #seismometer location
+        seiscoords = getseiscoords() #seismometer location
         seisdist = round(geopy.distance.geodesic(earthquakecoords, seiscoords).km)
         if quakedepth > (seisdist / 10): #if depth is large relative to distance of quake
             seisdist = math.sqrt((quakedepth ** 2) + (seisdist ** 2))
