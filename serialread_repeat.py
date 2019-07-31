@@ -18,8 +18,16 @@ def serialopen(port):
             portopen[0] = True
             print('serial success')
             return seropen
-        except serial.SerialException:
+        except (OSError, serial.SerialException):
             sleep(2)
+            
+def waitfordata():
+    print('waiting for data')
+    t = 20
+    while t > 0:
+        print('...' + str(t))
+        t = t - 1
+        sleep(1) # wait while arduino starts up
 
 ser = serialopen('/dev/ttyACM0')
 ser.flushInput()
@@ -36,21 +44,23 @@ while datetime.now() < end_time:
     with open(filename,"a") as f:  #write metadata line
         f.write('metadata: ' + str(datetime.now()) + ', g, ms, Razor IMU, serial \n')
     
-    print('waiting for data')
-    t = 20
-    while t > 0:
-        print('...' + str(t))
-        t = t - 1
-        sleep(1) # wait while arduino starts up
+    waitfordata()
         
     decoded_bytes = [] #set decoded_bytes to empty 
-    while decoded_bytes != 'reset': #run until 'reset' is recieved
-        ser_bytes = ser.readline() #read serial
-        decoded_bytes = str(ser_bytes[0:len(ser_bytes)-2].decode("utf-8"))
-        print(decoded_bytes) #print serial to terminal
-        with open(filename,"a") as f: #write serial to file
-            writer = csv.writer(f,delimiter=",")
-            writer.writerow([decoded_bytes])
+    while decoded_bytes != 'reset': #run until 'reset' is received
+        try:
+            ser_bytes = ser.readline() #read serial
+            decoded_bytes = str(ser_bytes[0:len(ser_bytes)-2].decode("utf-8"))
+            print(decoded_bytes) #print serial to terminal
+            with open(filename,"a") as f: #write serial to file
+                writer = csv.writer(f,delimiter=",")
+                writer.writerow([decoded_bytes])
+        except (OSError, serial.SerialException):
+            ser.close() #end serial connection
+            print('serial error, retrying')
+            sleep(0.5)
+            ser = serialopen('/dev/ttyACM0')
+            waitfordata()
     
     print('resetting clock')
     
