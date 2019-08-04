@@ -16,12 +16,55 @@ from scipy import signal
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import math
-import getseiscoords
+from accelinfo import getseiscoords, getfilepath
 
-filename = max(glob.iglob(r"D:\Nick\Python\*.csv"), key=os.path.getctime) #get path of most recent data file
-#filename = 
+#%%
+
+filename = max(glob.iglob(getfilepath()), key=os.path.getctime) #get path of most recent data file 
+#starttime_s = os.path.getmtime(filename)
 #starttime_s = os.path.getctime(filename)
-starttime_s = os.path.getmtime(filename)
+
+print('Reading metadata')
+with open(filename, newline='\n') as f:
+    reader = csv.reader(f)
+    metadata = next(reader)
+    
+if 'PDT' in metadata[0]: #if timezone is PDT 
+    starttime_s = metadata[0].strip('metadata: PDT')
+    
+elif 'UTC' in metadata[0]: #if timezone is UTC
+    starttime_s = metadata[0].strip('metadata: UTC')
+    
+else: #tries to handle messed up time from first files
+    starttime_s = metadata[0].strip('metadata: ')
+    starttime_s = starttime_s.replace('-',',')
+    starttime_s = starttime_s.replace(' ',',')
+    starttime_s = starttime_s.replace(':',',')
+    starttime_s = list(starttime_s)
+    if starttime_s[5] == 0:
+        starttime_s[5] = ''
+    if starttime_s[8] == 0:
+        starttime_s[8] = ''
+    starttime_s[19:26] = ''
+    starttime_s = ''.join(starttime_s)
+    counter = 0
+    for item in starttime_s:
+        starttime_s[counter] = int(starttime_s[counter])
+        counter = counter + 1 
+    
+    starttime_s = (datetime(starttime_s) - datetime(1970,1,1)).total_seconds()   
+    
+    #1564828099.0 
+    #1564853299.0
+    #2019-08-03 10:28:19.272629
+
+accelunits = metadata[1]
+timeunits = metadata[2]
+sensorname = metadata[3]
+comstandard = metadata[4]
+
+
+#%%
 
 print('Reading file')
 
@@ -150,6 +193,10 @@ urltime_end = starttime_s + (60*60*24) #same as above but add one day
 urltime_end = datetime.utcfromtimestamp(urltime_end)
 urltime_end = urltime_end.strftime("%Y-%m-%dT%H:%M:%S")
 
+urltime = starttime_s #starttime
+urltime = datetime.utcfromtimestamp(urltime)
+urltime = urltime.strftime("%Y%m%dT%H%M")
+
 #request url format    
 #https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=2014-01-01&endtime=2014-01-02&minmagnitude=1.5
 print('Getting data from USGS')
@@ -189,8 +236,10 @@ for feature in data['features']:
     earthquakecoords = feature['geometry']['coordinates'] 
     quakedepth = earthquakecoords[2]
     earthquakecoords = [earthquakecoords[1],earthquakecoords[0]] #remove depth
-    seiscoords = getseiscoords() #seismometer location #seismometer location
+    seiscoords = getseiscoords() #seismometer location 
     seisdist = round(geopy.distance.geodesic(earthquakecoords, seiscoords).km)
+    if quakedepth > (seisdist / 10): #if depth is large relative to distance of quake
+        seisdist = math.sqrt((quakedepth ** 2) + (seisdist ** 2))
     i.append(seisdist) #distance between earthquake and seismometer, rounded to nearest km
     seisdeltat = abs((seisdist/2)-60) #time difference between earthquake and expected arrival
     if (seistime + seisdeltat) > endtime_s:
@@ -208,7 +257,7 @@ for feature in data['features']:
     quakeplottime.append(seistime)
     quakeplotdist.append(seisdist)
     quakeplotmag.append(seismag)
-    quakeplotlogdepth.append(-np.log(quakedepth))
+    quakeplotlogdepth.append(-np.log(abs(quakedepth) + 0.001))
     quakeplotdepth.append(quakedepth)
 
 plt.figure(1)    
@@ -219,21 +268,25 @@ plt.xlabel('Time (s)')
 #plt.savefig('quakedistances.png')
 plt.show
 
-xxx = np.linspace(1,9,100)
-yyy = []
-zzz = np.linspace(quakeplottime[0],quakeplottime[-1],100)
-for row in xxx:
-    yyy.append(2 * math.exp(2 * row))
+#cutoffmag = np.linspace(1,9,100)
+#cutofftime = np.linspace(quakeplottime[0],quakeplottime[-1],10)
+#cutoffdist = np.linspace(0.001,max(quakeplotdist),10)
+#cutoffmag = []
+#for row in cutofftime:
+    #cutoffmag.append(np.log(cutoffdist/2))
+#cutoffmag = np.array(cutoffmag)
+#for row in cutoffmag:
+    #cutoffdist.append(2 * math.exp(2 * row))
     
-xxx,zzz = np.meshgrid(xxx,zzz)
-fig = plt.figure()
-ax = fig.gca(projection='3d')
-surf = ax.plot_surface(xxx,yyy,zzz)
+#cutofftime,cutoffdist = np.meshgrid(cutofftime,cutoffdist)
+#fig = plt.figure()
+#ax = fig.gca(projection='3d')
+#surf = ax.plot_surface(cutofftime,cutoffdist,cutoffmag)
 
 
 plt.figure(3)
 plt.scatter(quakeplotmag,quakeplotdist,c=quakeplotmag)
-plt.plot(xxx,yyy)
+#plt.plot(xxx,yyy)
 plt.ylabel('Distance (km)')
 plt.xlabel('Magnitude')
 plt.ylim(0,2000)
@@ -249,12 +302,14 @@ ax.set_xlabel('Seconds since epoch')
 ax.set_zlabel('Magnitude')
 #ax.scatter(zzz,yyy,xxx)
 plt.show
+plt.savefig(urltime + 'earthquakemap.png')
 
 #%%
 quakecounter = 0
 for j in quakelist:
     quakecounter = quakecounter + 1
-    print('Generating spectrogram for earthquake ' + str(quakecounter) + '/' + str(len(quakelist)))
+    print('Generating spectrogram for earthquake ' + str(quakecounter) + '/' + str(len(quakelist)) + ':')
+    print('    ' + str(round(j[2])) + 'M ' + j[0])
     
     quaketime = j[3]
     quaketime = datetime.utcfromtimestamp(quaketime)
@@ -325,19 +380,20 @@ for j in quakelist:
     
     windowname = j[0] #set name of window to location of quake
     windowname = windowname.replace(" ", "")  #strip whitespace to make a valid filename
+    #windowname = windowname + '_' + j[3] + '_'
     windowfilename = windowname + '.png' #generate filename
     
     accelfig = plt.figure(figsize=(12,6))
     def accelplot(axis,axisname,axisnumber): #plot acceleration graphs in a column
         plt.subplot(3,1,axisnumber) 
-        plt.plot(timenew,axis)
+        plt.plot(timenew,axis,linewidth=0.5)
         plt.title(axisname + ' Acceleration')
-        plt.xlabel('Time (ms)')
-        plt.ylabel('Acceleration (g)')
-        axistop = max(axis)+0.1*max(axis)
-        axistop = 2
-        axisbot = min(axis)-0.1*min(axis)
-        axisbot = -2
+        plt.xlabel('Time (' + timeunits + ')')
+        plt.ylabel('Acceleration (' + accelunits + ')')
+        axistop = max(axis)+0.2
+        #axistop = 2
+        axisbot = min(axis)-0.2
+        #axisbot = -2
         plt.ylim(axisbot,axistop)
         plt.set_cmap('magma')
         
@@ -394,4 +450,3 @@ for j in quakelist:
     plt.subplots_adjust(top=0.88)
     plt.savefig(str(round(j[2])) + 'M_' + windowname + '_spectrogram.png',dpi = 300)
     plt.close('all')
-
