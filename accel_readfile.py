@@ -450,31 +450,3 @@ for j in quakelist:
     plt.subplots_adjust(top=0.88)
     plt.savefig(str(round(j[2])) + 'M_' + windowname + '_spectrogram.png',dpi = 300)
     plt.close('all')
-
-#%%
-    
-print('Calculating more statistics')
-
-def find_thresholdvalues(axis):
-    shakelist = []
-    medianaxis = statistics.median(axis)
-    print('calculating')
-    stddevaxis = statistics.stdev(axis)
-    print('calculating')
-    axishigh = medianaxis + (2 * stddevaxis)
-    axislow = medianaxis - (2 * stddevaxis)
-    print('calculating')
-    axishigh = medianaxis + stddevaxis
-    axislow = medianaxis - stddevaxis
-    
-    counter = 0
-    for x in axis:
-        if x > axishigh or x <axislow:
-            shakelist.append(counter) 
-        counter = counter + 1
-        print(counter)
-    return shakelist 
-        
-threshx = find_thresholdvalues(accelx)
-threshx = find_thresholdvalues(accely)
-threshx = find_thresholdvalues(accelz)
