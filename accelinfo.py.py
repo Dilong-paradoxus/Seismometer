@@ -1,10 +1,10 @@
 coords = []
 
 def getseiscoords():
-    coords = (47.7477899,-122.526889)
+    coords = (lat,long)
     return coords
 
 filepath = []
 def getfilepath():
-    filepath = r"D:\Nick\Python\*.csv"
+    filepath = r"C:\yourpath\*.csv"
     return filepath
