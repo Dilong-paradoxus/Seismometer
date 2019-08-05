@@ -62,7 +62,9 @@ accelunits = metadata[1]
 timeunits = metadata[2]
 sensorname = metadata[3]
 comstandard = metadata[4]
-
+accelprecision = 'none' #set precision to 'none' if none is specified
+if len(metadata) > 5:
+    accelprecision = metadata[5] #precision = number of digits after the decimal
 
 #%%
 
@@ -80,21 +82,32 @@ with open(filename) as csvfile:
     skippedsplit = 0
     skippedaxis = 0 
     skippedt = 0
-    lengthaccellow = 13
-    lengthaccelhigh = 15
+    skippedrows = []
+    #lengthaccellow = 13
+    #lengthaccelhigh = 15
 
-
+    if accelprecision == 'none': #if no precision set
+        rowlenlow = 43
+        rowlenhigh = 56
+        lengthaccellow = 13
+        lengthaccelhigh = 15
+    else: #if precision set, set length limits based on precision
+        lengthaccellow = accelprecision + 2
+        lengthaccelhigh = accelprecision + 4
+        rowlenlow = (lengthaccellow * 3) + 4
+        rowlenhigh = (lengthaccelhigh * 3) + 9
+    
     for row in readCSV: #step through rows in file
         fullrow = row[0]
-        if len(row[0]) < 43: #if row is too short, skip
+        if len(row[0]) < rowlenlow: #if row is too short, skip
             #print(len(fullrow))
             skippedtotal = skippedtotal + 1
             skippedrowlen = skippedrowlen + 1
             #print(fullrow)
             continue
-        if len(row[0]) > 56: #if row is too long, skip
+        if len(row[0]) > rowlenhigh: #if row is too long, skip
             skippedtotal = skippedtotal + 1
-            skippedrowlen = skippedrowlen + 1
+            skippedrowlen[0] = skippedrowlen + 1
             #print(fullrow)
             #print(len(fullrow))
             continue
@@ -180,7 +193,7 @@ maxdiff = max(timediff)
 #devdiff = statistics.stdev(timediff)
 
 if maxdiff > (2 * meddiff): #if difference between max and median is too big
-    print('Warning: large gap between time measurements')
+    print('Warning: large gap between time measurements:' + str(maxdiff) + 's')
 
 #%%
 #download and parse geojson from USGS
@@ -450,3 +463,31 @@ for j in quakelist:
     plt.subplots_adjust(top=0.88)
     plt.savefig(str(round(j[2])) + 'M_' + windowname + '_spectrogram.png',dpi = 300)
     plt.close('all')
+
+#%%
+    
+print('Calculating more statistics')
+
+def find_thresholdvalues(axis):
+    shakelist = []
+    medianaxis = statistics.median(axis)
+    print('calculating')
+    stddevaxis = statistics.stdev(axis)
+    print('calculating')
+    axishigh = medianaxis + (2 * stddevaxis)
+    axislow = medianaxis - (2 * stddevaxis)
+    print('calculating')
+    axishigh = medianaxis + stddevaxis
+    axislow = medianaxis - stddevaxis
+    
+    counter = 0
+    for x in axis:
+        if x > axishigh or x <axislow:
+            shakelist.append(counter) 
+        counter = counter + 1
+        print(counter)
+    return shakelist 
+        
+threshx = find_thresholdvalues(accelx)
+threshx = find_thresholdvalues(accely)
+threshx = find_thresholdvalues(accelz)
