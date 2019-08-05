@@ -42,7 +42,8 @@ filename = str(starttime + '_' + 'accel.csv') #concat to file suffix
 #gather data until end_time is reached
 while datetime.now() < end_time:
     with open(filename,"a") as f:  #write metadata line
-        f.write('metadata: ' + str(datetime.now()) + ', g, ms, Razor IMU, serial \n')
+        metadatatime = datetime.now().timestamp()
+        f.write('metadata: PDT' + str(metadatatime) + ', g, ms, Razor IMU, serial \n')
     
     waitfordata()
         
