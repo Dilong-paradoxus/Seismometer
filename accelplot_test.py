@@ -283,7 +283,7 @@ def accelplot(quakelist,starttime_s,endtime_s,time_s,timeunits,accelunits,accelx
             show(p)  # open a browser
            
         fftgrid = fftaccel3(accelxnew,'x')    
-        fftaccel(accelxnew,'x',1)
+        #fftaccel(accelxnew,'x',1)
         
         l = gridplot([
                 [accelgrid],
