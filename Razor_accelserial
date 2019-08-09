@@ -35,8 +35,8 @@ void setup()
 
     imu.setSensors(INV_XYZ_ACCEL); //enable sensors
     imu.setAccelFSR(2); // 2, 4, 8, or 16g
-    imu.setLPF(42); // low pass: 5, 10, 20, 42, 98, or 188Hz
-    imu.setSampleRate(200); //set sample rate hz
+    imu.setLPF(188); // low pass: 5, 10, 20, 42, 98, or 188Hz
+    imu.setSampleRate(400); //set sample rate hz
 
     pinMode(ledPin, OUTPUT); //set led pin as output
 
@@ -45,28 +45,25 @@ void setup()
 
 void loop ()
 {
-  while (imu.time <= (6 * 60 * 60 * 1000)){  // while time < 6hrs
-    if ( digitalRead(INTERRUPT_PIN) == LOW ) // If MPU-9250 interrupt fires (active-low)
-    {
-      imu.update(UPDATE_ACCEL); // Update accel
-      //digitalWrite(ledPin, HIGH);
-      float zdata = imu.calcAccel(imu.az);
-      float ydata = imu.calcAccel(imu.ay);
-      float xdata = imu.calcAccel(imu.ax);
+  if ( digitalRead(INTERRUPT_PIN) == LOW ) // If MPU-9250 interrupt fires (active-low)
+  {
+    imu.update(UPDATE_ACCEL); // Update accel
+    //digitalWrite(ledPin, HIGH);
+    float zdata = imu.calcAccel(imu.az);
+    float ydata = imu.calcAccel(imu.ay);
+    float xdata = imu.calcAccel(imu.ax);
 
-      SerialPort.print(xdata, 11); //print data to serial
-      SerialPort.print(", "); //print comma
-      SerialPort.print(ydata, 11); //print data to serial
-      SerialPort.print(", "); //print comma
-      SerialPort.print(zdata, 11); //print data to serial
-      SerialPort.print(", "); //print comma
-      SerialPort.print(imu.time);
-      SerialPort.println();
-    }
-    else { 
-    //digitalWrite(ledPin, LOW);
-    }
+    String xstring = String(xdata,11);
+    xstring = String(xstring + ", ");
+    String ystring = String(ydata,11);
+    ystring = String(ystring + ", ");
+    String zstring = String(zdata,11);
+    zstring = String(zstring + ", ");
+    String Completestring = String(xstring + ystring + zstring);
+    Completestring = String(Completestring + imu.time);
+    SerialPort.println(Completestring);
   }
-  SerialPort.println("reset"); //send reset flag to serial port
-  NVIC_SystemReset();          // processor software reset
+  else { 
+    //digitalWrite(ledPin, LOW);
+  }
 }
