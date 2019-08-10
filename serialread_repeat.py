@@ -62,6 +62,8 @@ while datetime.now() < end_time:
             sleep(0.5)
             ser = serialopen('/dev/ttyACM0')
             waitfordata()
+            starttime = datetime.now().strftime('%Y%m%d_%H%M') #time string
+            filename = str(starttime + '_' + 'accel.csv') #concat to file suffix
     
     print('resetting clock')
     
