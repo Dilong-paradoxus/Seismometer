@@ -28,12 +28,25 @@ print('Reading metadata')
 with open(filename, newline='\n') as f:
     reader = csv.reader(f)
     metadata = next(reader)
-    
+
+metadatapresent = True
+
 if 'PDT' in metadata[0]: #if timezone is PDT 
     starttime_s = metadata[0].strip('metadata: PDT')
     
 elif 'UTC' in metadata[0]: #if timezone is UTC
     starttime_s = metadata[0].strip('metadata: UTC')
+    
+elif 'metadata' not in metadata[0]:
+    #convert filename to starttime
+    starttime = os.path.basename(filename)
+    starttime = datetime.strptime(starttime.replace('_accel.csv',''),'%Y%m%d_%H%M')
+    #starttime = filename[15:27]
+    #starttime = starttime_s.replace('_','')
+    #yeartime = starttime[0:3]
+    #convert datetime object to seconds
+    starttime_s = starttime.timestamp()
+    metadatapresent = False #set metadatapresent
     
 else: #tries to handle messed up time from first files
     starttime_s = metadata[0].strip('metadata: ')
@@ -48,23 +61,28 @@ else: #tries to handle messed up time from first files
     starttime_s[19:26] = ''
     starttime_s = ''.join(starttime_s)
     counter = 0
+    counter = int(counter)
     for item in starttime_s:
         starttime_s[counter] = int(starttime_s[counter])
         counter = counter + 1 
     
-    starttime_s = (datetime(starttime_s) - datetime(1970,1,1)).total_seconds()   
+    starttime_s = (datetime(starttime_s) - datetime(1970,1,1)).total_seconds()
     
-    #1564828099.0 
-    #1564853299.0
-    #2019-08-03 10:28:19.272629
-
-accelunits = metadata[1]
-timeunits = metadata[2]
-sensorname = metadata[3]
-comstandard = metadata[4]
-accelprecision = 'none' #set precision to 'none' if none is specified
-if len(metadata) > 5:
-    accelprecision = metadata[5] #precision = number of digits after the decimal
+if metadatapresent == True:
+    accelunits = metadata[1]
+    timeunits = metadata[2]
+    sensorname = metadata[3]
+    comstandard = metadata[4]
+    accelprecision = 'none' #set precision to 'none' if none is specified
+    if len(metadata) > 5:
+        accelprecision = metadata[5] #precision = number of digits after the decimal
+        
+else: 
+    accelunits = 'g'
+    timeunits = 'ms'
+    sensorname = 'unknown'
+    comstandard = 'serial'
+    accelprecision = 'none'
 
 #%%
 
@@ -107,7 +125,7 @@ with open(filename) as csvfile:
             continue
         if len(row[0]) > rowlenhigh: #if row is too long, skip
             skippedtotal = skippedtotal + 1
-            skippedrowlen[0] = skippedrowlen + 1
+            skippedrowlen = skippedrowlen + 1
             #print(fullrow)
             #print(len(fullrow))
             continue
@@ -193,7 +211,7 @@ maxdiff = max(timediff)
 #devdiff = statistics.stdev(timediff)
 
 if maxdiff > (2 * meddiff): #if difference between max and median is too big
-    print('Warning: large gap between time measurements:' + str(maxdiff) + 's')
+    print('Warning: large gap between time measurements:' + str(round(maxdiff,3)) + 's')
 
 #%%
 #download and parse geojson from USGS
@@ -214,8 +232,11 @@ urltime = urltime.strftime("%Y%m%dT%H%M")
 #https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=2014-01-01&endtime=2014-01-02&minmagnitude=1.5
 print('Getting data from USGS')
 
+minUSGSmag = '1.5'
+maxUSGSmag = '10.0'
+
 urlUSGS = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=' #start of url
-urlUSGS = urlUSGS + urltime_start + '&endtime=' + urltime_end + '&minmagnitude=1.5' #append times based on above calculations
+urlUSGS = urlUSGS + urltime_start + '&endtime=' + urltime_end + '&minmagnitude=' + minUSGSmag #append times based on above calculations
 
 #open from url
 #format: two digit mag_length of time.geojson
@@ -315,7 +336,7 @@ ax.set_xlabel('Seconds since epoch')
 ax.set_zlabel('Magnitude')
 #ax.scatter(zzz,yyy,xxx)
 plt.show
-plt.savefig(urltime + 'earthquakemap.png')
+#plt.savefig(urltime + 'earthquakemap.png')
 
 #%%
 quakecounter = 0
@@ -446,7 +467,7 @@ for j in quakelist:
         #plt.savefig(windowname + '_' + axisname + '_freq.png')
 
         plt.subplot(3,2,axisnumber+1)
-        f, t2, Sxx = signal.spectrogram(axis, 1000, nperseg = 1000)
+        f, t2, Sxx = signal.spectrogram(axis, fs=sampling_rate, nperseg = 1000)
         plt.pcolormesh(t2, f, np.log(Sxx))
         plt.set_cmap('inferno')
         plt.ylabel('Frequency [Hz]')
@@ -464,30 +485,3 @@ for j in quakelist:
     plt.savefig(str(round(j[2])) + 'M_' + windowname + '_spectrogram.png',dpi = 300)
     plt.close('all')
 
-#%%
-    
-print('Calculating more statistics')
-
-def find_thresholdvalues(axis):
-    shakelist = []
-    medianaxis = statistics.median(axis)
-    print('calculating')
-    stddevaxis = statistics.stdev(axis)
-    print('calculating')
-    axishigh = medianaxis + (2 * stddevaxis)
-    axislow = medianaxis - (2 * stddevaxis)
-    print('calculating')
-    axishigh = medianaxis + stddevaxis
-    axislow = medianaxis - stddevaxis
-    
-    counter = 0
-    for x in axis:
-        if x > axishigh or x <axislow:
-            shakelist.append(counter) 
-        counter = counter + 1
-        print(counter)
-    return shakelist 
-        
-threshx = find_thresholdvalues(accelx)
-threshx = find_thresholdvalues(accely)
-threshx = find_thresholdvalues(accelz)
