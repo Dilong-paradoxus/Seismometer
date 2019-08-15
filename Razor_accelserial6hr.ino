@@ -35,12 +35,12 @@ void setup()
 
     imu.setSensors(INV_XYZ_ACCEL); //enable sensors
     imu.setAccelFSR(2); // 2, 4, 8, or 16g
-    imu.setLPF(188); // low pass: 5, 10, 20, 42, 98, or 188Hz
+    imu.setLPF(0); // low pass: 5, 10, 20, 42, 98, or 188Hz...0=off
     imu.setSampleRate(800); //set sample rate hz
 
     pinMode(ledPin, OUTPUT); //set led pin as output
 
-    SerialPort.println("X, Y, Z, Time");
+    //SerialPort.println("X, Y, Z, Time");
 }
 
 void loop ()
