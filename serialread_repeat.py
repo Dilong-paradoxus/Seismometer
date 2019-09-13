@@ -102,7 +102,8 @@ while datetime.now() < end_time:
         try:
             ser_bytes = ser.readline() #read serial
             decoded_bytes = str(ser_bytes[0:len(ser_bytes)-2].decode("utf-8"))
-            print(decoded_bytes) #print serial to terminal
+            timeleftstring = ' | ' + str(end_time - datetime.now()) + ' remaining'
+            print(decoded_bytes + timeleftstring) #print serial to terminal
             with open(filename,"a") as f: #write serial to file
                 writer = csv.writer(f,delimiter=",")
                 writer.writerow([decoded_bytes])
