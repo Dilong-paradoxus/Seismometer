@@ -1,0 +1,10 @@
+#stuff to ignore:
+
+#ignore recorded sensor data
+SeismometerData/
+
+#Ignore Generated earthquake graphs
+QuakeCharts/
+
+#Ignore location and path info in accelinfo
+accelinfo.py
