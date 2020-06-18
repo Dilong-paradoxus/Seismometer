@@ -6,7 +6,7 @@ import os
 import csv
 import serial
 from time import sleep
-from datetime import datetime
+from datetime import datetime, timedelta
 from ConfigFiles.accelinfo import getCOMnumber
 
 #Open serial port
@@ -150,7 +150,8 @@ while True:
         else: 
             ser.write('SEN'.encode('utf-8'))
         continue #restart loop
-
+    
+    #
     msg_cases_return = msg_cases(ser_data,filename,ser)
     print(str(msg_cases_return))
     if msg_cases_return != 0:
@@ -160,6 +161,10 @@ while True:
             print('time received')
             print(msg_cases_return[1])
     
+    #Create a new file every hour
+    if (datetime.utcnow() - starttime) > timedelta(seconds=3600):
+        filename.close()
+        filename = set_filename()
 
 ser.close()
 
