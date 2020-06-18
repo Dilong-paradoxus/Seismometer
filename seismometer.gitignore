@@ -7,7 +7,7 @@ SeismometerData/
 QuakeCharts/
 
 #Ignore location and path info in accelinfo
-accelinfo.py
+#accelinfo.py
 
 #Ignore generated configuration files
 ConfigFiles/
