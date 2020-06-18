@@ -2,8 +2,8 @@
 # keep it from being uploaded to the git repository along with program files
 
 def getseiscoords(): #returns the latitude and longitude of the seismometer
-    your_lat = 0
-    your_long = 0
+    your_lat = 10
+    your_long = 10
     coords = (your_lat,your_long)
     return coords
 
