@@ -3,8 +3,11 @@
 #ignore recorded sensor data
 SeismometerData/
 
-#Ignore Generated earthquake graphs
+#Ignore generated earthquake graphs
 QuakeCharts/
 
 #Ignore location and path info in accelinfo
 accelinfo.py
+
+#Ignore generated configuration files
+ConfigFiles/
