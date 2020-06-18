@@ -7,13 +7,16 @@ import csv
 import serial
 from time import sleep
 from datetime import datetime
+from ConfigFiles.accelinfo import getCOMnumber
 
 #Open serial port
 def serialopen():
-    if os.name == 'nt': #windows
-        portname = 'COM4' 
-    else: #linux or whatever
-        portname = '/dev/ttyACM0'
+    # if os.name == 'nt': #windows
+    #     portname = 'COM4' 
+    # else: #linux or whatever
+    #     portname = '/dev/ttyACM0'
+
+    portname = getCOMnumber()
         
     print('opening serial port at ' +  portname)
     portopen = [False,0] #initialize variable to hold number of failed tries
@@ -38,7 +41,7 @@ def set_filename():
     filename = 'test.csv'
 
     timestring = datetime.utcnow().strftime('%Y%m%d_%H%M')
-    current_path = os.getcwd()
+    current_path = os.getcwd() + '\\AccelerometerData\\'
     filename = str(current_path) + timestring + '_UTC_accel.csv'
     print(filename)
     return filename
