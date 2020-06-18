@@ -17,7 +17,6 @@ from mpl_toolkits.mplot3d import Axes3D
 import math
 from accelinfo import getseiscoords, getfilepath
 #from 190810_accelplot import accelplotter
-import numpy as np
 from bokeh.plotting import figure, output_file, show 
 from bokeh.layouts import gridplot
 from bokeh.models import Range1d
@@ -48,7 +47,7 @@ else:
 
 #print('No file loaded - continuing')    
 
-if input('Use most recent acceleration file? [y/n] ') == 'n':
+if input('Use last acceleration file? [y/n] ') == 'n':
     def file_selector():
         print('Please select a file:')
         counter = 0
@@ -78,20 +77,24 @@ metadatapresent = True
 
 if 'PDT' in metadata[0]: #if timezone is PDT 
     starttime_s = metadata[0].strip('metadata: PDT')
+    metatimezone = 'PDT'
     
 elif 'UTC' in metadata[0]: #if timezone is UTC
     starttime_s = metadata[0].strip('metadata: UTC')
+    #startime_s = starttime_s + 28829 
+    metatimezone = 'UTC'
     
 elif 'metadata' not in metadata[0]:
     #convert filename to starttime
     starttime = os.path.basename(filename)
+    if 'UTC' in starttime:
+        metatimezone = 'UTC'
+    else:
+        metatimezone = 'PDT'
     starttime = datetime.strptime(starttime.replace('_accel.csv',''),'%Y%m%d_%H%M')
-    #starttime = filename[15:27]
-    #starttime = starttime_s.replace('_','')
-    #yeartime = starttime[0:3]
-    #convert datetime object to seconds
     starttime_s = starttime.timestamp()
     metadatapresent = False #set metadatapresent
+    
     
 else: #tries to handle messed up time from first files
     starttime_s = metadata[0].strip('metadata: ')
@@ -113,14 +116,16 @@ else: #tries to handle messed up time from first files
     
     starttime_s = (datetime(starttime_s) - datetime(1970,1,1)).total_seconds()
     
+    metatimezone = 'PDT'
+    
 if metadatapresent == True:
-    accelunits = metadata[1]
-    timeunits = metadata[2]
-    sensorname = metadata[3]
-    comstandard = metadata[4]
+    accelunits = metadata[1].strip()
+    timeunits = metadata[2].strip()
+    sensorname = metadata[3].strip()
+    comstandard = metadata[4].strip()
     accelprecision = 'none' #set precision to 'none' if none is specified
     if len(metadata) > 5:
-        accelprecision = metadata[5] #precision = number of digits after the decimal
+        accelprecision = metadata[5].strip() #precision = number of digits after the decimal
         
 else: 
     accelunits = 'g'
@@ -146,6 +151,8 @@ with open(filename) as csvfile:
     skippedaxis = 0 
     skippedt = 0
     skippedrows = []
+    blankrows = 0
+    row = [1,1,1]
     #lengthaccellow = 13
     #lengthaccelhigh = 15
 
@@ -161,7 +168,12 @@ with open(filename) as csvfile:
         rowlenhigh = (lengthaccelhigh * 3) + 9
     
     for row in readCSV: #step through rows in file
-        fullrow = row[0]
+        try:
+            fullrow = row[0] #grab original row for debug pruposes
+        except IndexError: #if that errors out because the row is blank,
+            blankrows = blankrows + 1 #add one to blankrows and keep going
+            continue
+        
         if len(row[0]) < rowlenlow: #if row is too short, skip
             #print(len(fullrow))
             skippedtotal = skippedtotal + 1
@@ -241,8 +253,38 @@ print('Converting ms to S')
 
 starttime_s = np.array(starttime_s)
 starttime_s = starttime_s.astype(np.float)
-time_s = [] #initialize arry
-time_s = [((x/1000)+starttime_s) for x in timems] #time_s = timems converted to s and added to the start time
+starttime_s = starttime_s - (8*60*60)
+
+#all of this converts PDT to PST because I was dumb
+if 'PDT' in metadata[0]:
+    starttime_PST_s = float(metadata[0].strip('metadata: PDT')) #get starttime 
+    startbool = starttime_PST_s > 1572771540 #is the time after PDT ended 2019?
+    endbool = starttime_PST_s < 1583661600 #is the time before PDT started 2020?
+    PDTbool = 'PDT' in metadata[0] #is 'PDT' in the metadata?
+    PST2019bool = PDTbool and (startbool and endbool) #if yes to 1 & (2 & 3)
+    if PST2019bool:
+        print('Correcting for PST 2019')
+        starttime_s = starttime_s + 3600 #add 3600 to the starttime
+        #time_s = [(x + 3600) for x in time_s]
+
+time_s = [] #initialize array
+if timeunits == 'ms':
+    time_s = [((x/1000)+starttime_s) for x in timems] #time_s = timems converted to s and added to the start time
+    
+    #all of this converts PDT to PST because I was dumb
+# =============================================================================
+#     starttime_PST_s = float(metadata[0].strip('metadata: PDT')) #get starttime 
+#     startbool = starttime_PST_s > 1572771540 #is the time after PDT ended 2019?
+#     endbool = starttime_PST_s < 1583661600 #is the time before PDT started 2020?
+#     PDTbool = 'PDT' in metadata[0] #is 'PDT' in the metadata?
+#     PST2019bool = PDTbool and (startbool or endbool) #if yes to 1 & (2 or 3)
+#     if PST2019bool:
+#         print('Correcting for PST')
+#         starttime_s = starttime_s + 3600 #add 3600 to everything
+#         time_s = [(x + 3600) for x in time_s]
+# =============================================================================
+       
+    time_s = [round(x, 4) for x in time_s] #rounds to nearest ms 1577134827.584
 endtime_s = time_s[-1] #get end time by reading last value in time_s
 
 #calculate statistics
@@ -322,6 +364,7 @@ for feature in data['features']:
         seisdist = math.sqrt((quakedepth ** 2) + (seisdist ** 2))
     i.append(seisdist) #distance between earthquake and seismometer, rounded to nearest km
     seisdeltat = abs((seisdist/2)-60) #time difference between earthquake and expected arrival
+    seisdeltat=seisdeltat + 90
     if (seistime + seisdeltat) > endtime_s:
         continue #if earthquake is expected to arrive after end of recording
     if (seistime + seisdeltat) < starttime_s:
@@ -398,7 +441,7 @@ def plot_all():
     quakecount = len(quakelist)
     quakecounter = 0
     for item in quakelist:
-        print('Quake 1/' + quakecount)
+        print('Quake 1/' + str(quakecount))
         accelplotter(item)
         quakecounter = quakecounter + 1
     return
@@ -407,7 +450,8 @@ def plot_quake():
     print('Please select an earthquake:')
     counter = 0
     for item in quakelist:
-        print(str(counter) + ' - ' + str(round(item[2])) + 'M ' + item[0])
+        print(str(counter) + ' - ' + str(round(item[2])) + 'M ' + item[0]
+              + ' ' + str(item[4]) + 'km away, ' + str(abs((item[4]/2)-60)) + 's travel')
         counter = counter + 1
     
     print()
@@ -429,6 +473,8 @@ def accelplotter(j):
         windowstart = starttime_s #if window starts before data, cut window to data
     if windowend > endtime_s:
         windowend = endtime_s #if window ends before data, cut window to data
+        
+    print(windowstart,windowend,(windowend-windowstart)) #debugging print statement
     
     windowindices = []
     for kindex, k in enumerate(time_s): #find indices of times in window for 
@@ -438,6 +484,8 @@ def accelplotter(j):
             continue
             #print(windowend)
         windowindices.append(kindex)
+        
+    print(len(windowindices)) #debugging print statement
     
     window_accelx = accelx[windowindices] #cut down arrays to times in the window
     window_accely = accely[windowindices]
@@ -445,6 +493,9 @@ def accelplotter(j):
     window_time_s = []
     for row in windowindices:
         window_time_s.append(time_s[row])
+    
+    #another print statement for debugging purposes    
+    print(len(window_accelx),len(window_accely),len(window_accelz),len(window_time_s))
     
     def interpolateaccel(axis):
         f = interpolate.interp1d(window_time_s,axis,kind='cubic') #make interpolation function
@@ -454,6 +505,7 @@ def accelplotter(j):
         return accelaxisnew
     
     if len(window_accelx) ==  0 or len(window_accely) == 0 or len(window_accelz) == 0:
+        print(len(window_accelx))
         print('Array error: too small ):')
         return
     
@@ -488,7 +540,7 @@ def accelplotter(j):
                     background_fill_color=colortheme[0],
                     toolbar_location=None,
                     tooltips=[("x", "$x"), ("y", "$y")])
-        pxaccel.line(timenew,accelxnew,legend='x',line_width=1,line_color=colortheme[1])
+        pxaccel.line(timenew,accelxnew,legend_label='x',line_width=1,line_color=colortheme[1])
         pxaccel.x_range=Range1d(-6000,180000)
         
         pyaccel = figure(plot_width=pwidth,plot_height=pheight,
@@ -496,7 +548,7 @@ def accelplotter(j):
                     background_fill_color=colortheme[0],
                     toolbar_location=None,
                     tooltips=[("x", "$x"), ("y", "$y")])
-        pyaccel.line(timenew,accelynew,legend='y',line_width=1,line_color=colortheme[2])
+        pyaccel.line(timenew,accelynew,legend_label='y',line_width=1,line_color=colortheme[2])
         pyaccel.x_range=Range1d(-6000,180000)
         
         pzaccel = figure(plot_width=pwidth,plot_height=pheight,
@@ -504,7 +556,7 @@ def accelplotter(j):
                     background_fill_color=colortheme[0],
                     toolbar_location=None,
                     tooltips=[("x", "$x"), ("y", "$y")])
-        pzaccel.line(timenew,accelznew,legend='z',line_width=1,line_color=colortheme[3])
+        pzaccel.line(timenew,accelznew,legend_label='z',line_width=1,line_color=colortheme[3])
         pzaccel.x_range=Range1d(-6000,180000)
         
         
@@ -533,7 +585,7 @@ def accelplotter(j):
         xfft = np.linspace(0.0, 1.0/(2.0*T), int(N/2))
 
         # FFT algorithm
-        yr = fft(axis) # "raw" FFT with both + and - frequencies
+        yr = fft.fft(axis) # "raw" FFT with both + and - frequencies
         yfft = 2/N * np.abs(yr[0:np.int(N/2)]) # positive freqs only
         
         p1=figure(tooltips=[("x", "$x"), ("y", "$y")],y_axis_type='log',
@@ -610,8 +662,8 @@ def plot_range():
     return
 
 def get_window():
-    windowstart = starttime_s
-    windowend = endtime_s
+    #windowstart = starttime_s
+    #windowend = endtime_s
     windowstartinput = 0
     windowendinput = int(endtime_s - starttime_s)
     print('File length: ' + str(windowendinput) + ' seconds')
@@ -626,7 +678,55 @@ def get_window():
 def plot_events():
     print('Plotting all acceleration events')
     
-    return
+    def find_thresholdvalues(axis):
+        print('Calculating statistics')
+        medianaxis = statistics.median(axis)
+        stddevaxis = statistics.stdev(axis)
+        axishigh = medianaxis + (3 * stddevaxis)
+        axislow = medianaxis - (3 * stddevaxis)
+        #axishigh = medianaxis + stddevaxis
+        #axislow = medianaxis - stddevaxis
+        
+        print('Finding events')
+        shakelist = []
+        #counter = 0
+        #for x in axis:
+            #if x > axishigh or x < axislow:
+                #shakelist.append(counter) 
+                #print(str(counter) + str(x))
+            #else:
+                #print(counter)
+            #counter = counter + 1
+            
+        for kindex, k in enumerate(axis):
+            if k > axishigh or k < axislow:
+                shakelist.append(kindex)
+            else:
+                continue
+        
+        print(len(shakelist))
+        
+        #window_accelx = accelx[windowindices] #cut down arrays to times in the window
+        #window_accely = accely[windowindices]
+        event_accelz = accelz[shakelist]
+        event_time_s = []
+        for row in shakelist:
+            event_time_s.append(time_s[row])
+        
+        #shakelist = find_thresholdvalues(accelz)
+    
+        plt.figure()    
+        plt.plot(event_time_s,event_accelz)
+        plt.title('Event times')
+        plt.ylabel('Acceleration (g)')
+        plt.xlabel('Time (s)')
+        plt.show
+        
+        return shakelist
+    
+    find_thresholdvalues(accelz)
+    
+    return #shakelist
 
 def plot_window(windowstart,windowend):
     
@@ -808,15 +908,19 @@ def plot_selector():
     
     if plot_input == '1':
         plot_all()
+        return
         
     elif plot_input == '2':
         plot_quake()
+        return
         
     elif plot_input == '3':
-        plot_events()
+        shakelist = plot_events()
+        return shakelist
         
     elif plot_input == '4':
         plot_range()
+        return shakelist
         
     elif plot_input == '5':
         print('Exiting')
@@ -827,4 +931,4 @@ def plot_selector():
         return
     
 #Run!
-plot_selector()
+pselector = plot_selector()
