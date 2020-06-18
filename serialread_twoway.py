@@ -38,7 +38,8 @@ def set_filename():
     filename = 'test.csv'
 
     timestring = datetime.utcnow().strftime('%Y%m%d_%H%M')
-    filename = '\\SeismometerData\\' + timestring + '_UTC_accel.csv'
+    current_path = os.getcwd()
+    filename = str(current_path) + timestring + '_UTC_accel.csv'
     print(filename)
     return filename
 
@@ -93,8 +94,6 @@ def split_data(input_data): #move data into a dictionary
             #print("line 93" + str(item))
             data[item[0]] = item[1]
             #print(item[0] + '-' + item[1])
-            #metadata[item[0]] = item[1]
-    #data = {data[i]: data[i + 1] for i in range(0, len(data), 2)}
     #print(data)
     return data 
 
@@ -137,7 +136,7 @@ ser.write('SEN'.encode('utf-8'))
 #ser.write('DAT'.encode('utf-8'))
 
 while True:
-    ser.write('DAT'.encode('utf-8')) #request data
+    #ser.write('DAT'.encode('utf-8')) #request data
     ser_bit, ser_data, fname = read_serial(ser) 
 
     if ser_bit == 0: #if read_serial returns error
