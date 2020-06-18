@@ -11,3 +11,6 @@ QuakeCharts/
 
 #Ignore generated configuration files
 ConfigFiles/
+
+#Ignore pychache
+_pycache_/
