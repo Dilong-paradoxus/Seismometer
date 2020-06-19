@@ -9,6 +9,9 @@ from time import sleep
 from datetime import datetime, timedelta
 from ConfigFiles.accelinfo import getCOMnumber
 
+metadata = 0
+starttime = 0
+
 #Open serial port
 def serialopen():
     # if os.name == 'nt': #windows
@@ -18,7 +21,7 @@ def serialopen():
 
     portname = getCOMnumber()
         
-    print('opening serial port at ' +  portname)
+    print('Opening serial port at ' +  portname)
     portopen = [False,0] #initialize variable to hold number of failed tries
     while portopen[0] == False:
         portopen[1] = portopen[1] + 1
@@ -26,7 +29,7 @@ def serialopen():
         try:    
             seropen = serial.Serial(portname,baudrate=500000) #open serial
             portopen[0] = True #probably unnecessary
-            filename = set_filename()
+            filename = set_filename(seropen)
             print('serial success')
             return seropen, filename #return the serial port to be used
         except (PermissionError): #not sure if this actually works
@@ -36,18 +39,33 @@ def serialopen():
             print('OSError or SerialException')
             sleep(2) #wait for the serial device to turn on or be plugged in
 
-def set_filename():
+def set_filename(ser):
     print(datetime.utcnow())
-    filename = 'test.csv'
-
-    timestring = datetime.utcnow().strftime('%Y%m%d_%H%M')
+    global starttime
+    starttime = datetime.utcnow() #set starttime to current time
+    timestring = starttime.strftime('%Y%m%d_%H%M')
     current_path = os.getcwd() + '\\AccelerometerData\\'
     filename = str(current_path) + timestring + '_UTC_accel.csv'
     print(filename)
+
+    global metadata
+    if metadata != 0:
+        write_file(metadata,filename)
+    else: 
+        ser.write('SEN'.encode('utf-8'))
+
+    starttime_string = {
+        'T_S' : starttime.strftime('%Y%m%d_%H%M_%S%f'), 
+        'T_L' : datetime.now().strftime('%Y%m%d_%H%M_%S%f')
+    }
+    write_file(starttime_string,filename)
+
     return filename
 
-def sensor_reset():
-    print('reset')
+# def sensor_reset():
+#     filename, starttime = set_filename()
+#     print('reset')
+#     return filename, starttime
             
 def send_time(ser):
     rcvdmsg = [9999]
@@ -72,7 +90,7 @@ def read_serial(ser): #grabs latest line from serial port
     try:
         ser_bytes = ser.readline() #read one line from serial port
         decoded_bytes = str(ser_bytes[0:len(ser_bytes)-2].decode("utf-8")) #convert that line to a normal string
-        return 1,decoded_bytes,0 #return bit saying data is good, the data, and a zero
+        return 1,decoded_bytes,0 #return bit saying data is good, the data, a zero, the starttime
     except (OSError, serial.SerialException):
         ser.close() #end serial connection
         print('serial error, retrying')
@@ -84,33 +102,31 @@ def write_file(line,filename): #takes line to write and path of file
         with open(filename,"a") as f: #write serial to file
             #writer = csv.writer(f,delimiter=",") #set delimiter as ','
             #writer.writerow(line) #write row
-            f.write(str(line) + "\r\n")
+            f.write(str(line) + "\n")
             
 def split_data(input_data): #move data into a dictionary
-    #print("line 86: " + str(input_data))
     input_data = input_data.split(',')
-    #print("line 88: " + str(input_data))
     data = {}
     for item in input_data:
         if item != '':
             item = item.split()
-            #print("line 93" + str(item))
             data[item[0]] = item[1]
-            #print(item[0] + '-' + item[1])
-    #print(data)
+
+    print(data)
     return data 
 
 def msg_cases(decoded_bytes,filename,ser):
     msg_code = str(decoded_bytes[0:3])
-    print(msg_code)
-    print("raw decoded: " + decoded_bytes)
+    #print(msg_code)
+    #print("raw decoded: " + decoded_bytes)
 
     if msg_code == "DAT": 
         write_file(split_data(decoded_bytes),filename)
         return 0
     elif msg_code == "RES":
         print('resetting')
-        return 0
+        filename = set_filename(ser)
+        return 'RES', filename
     elif msg_code == "SEN":
         return 'SEN', rcv_SEN(decoded_bytes,filename)
     elif msg_code == "TIM":
@@ -136,10 +152,8 @@ ser.reset_input_buffer() #clear buffer of any previous data
 
 metadata = 0
 ser.write('SEN'.encode('utf-8'))
-#ser.write('DAT'.encode('utf-8'))
 
 while True:
-    #ser.write('DAT'.encode('utf-8')) #request data
     ser_bit, ser_data, fname = read_serial(ser) 
 
     if ser_bit == 0: #if read_serial returns error
@@ -151,7 +165,7 @@ while True:
             ser.write('SEN'.encode('utf-8'))
         continue #restart loop
     
-    #
+    #handles incoming data
     msg_cases_return = msg_cases(ser_data,filename,ser)
     print(str(msg_cases_return))
     if msg_cases_return != 0:
@@ -160,11 +174,13 @@ while True:
         elif msg_cases_return[0] == 'TIM':
             print('time received')
             print(msg_cases_return[1])
+        elif msg_cases_return[0] == 'RES':
+            filename = msg_cases_return[1]
+            #starttime = msg_cases_return[2]
     
     #Create a new file every hour
     if (datetime.utcnow() - starttime) > timedelta(seconds=3600):
-        filename.close()
-        filename = set_filename()
+        filename = set_filename(ser)
 
 ser.close()
 

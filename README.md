@@ -5,9 +5,9 @@ Seismic waves passing through the earth create accelerations on objects at the s
 ## Requirements
 I have only been able to test on a few computers so here's what does work. Feel free to let me know what does/doesn't work if you try it out!
 
-*Microcontroller: Tested on Teensy 4.0 and Razor IMU w/SAMD21. Arduino UNO could probably run the program but not very fast. 
-*Recording: Tested on Windows and Linux laptop with 8GB ram and 2.6GHZ 2-core processor. You could probably get away with a lot less, but the pi zero was not able to run the program at a useable speed. You also need enough storage to archive as much data as you need for processing, so at least a few GB if you keep uncompressed files for a week or so. 
-*Data processing: Tested on 16GB RAM desktop with 3.4GHZ 6-core. Went pretty slowly on the aforementioned 8GB laptop. Internet required to get USGS earthquake data
+* Microcontroller: Tested on Teensy 4.0 and Razor IMU w/SAMD21. Arduino UNO could probably run the program but not very fast. 
+* Recording: Tested on Windows and Linux laptop with 8GB ram and 2.6GHZ 2-core processor. You could probably get away with a lot less, but the pi zero was not able to run the program at a useable speed. You also need enough storage to archive as much data as you need for processing, so at least a few GB if you keep uncompressed files for a week or so. 
+* Data processing: Tested on 16GB RAM desktop with 3.4GHZ 6-core. Went pretty slowly on the aforementioned 8GB laptop. Internet required to get USGS earthquake data
 
 ## General instructions
 First, upload accelserial_twoway.ino to your Teensy using the arduino IDE and teesnyduino. Then, run setup.py and follow the instructions. When you're ready to collect data, run serialread_twoway. It will write the data to the same folder as itself, and create a new file every 6 hours when the Razor resets. When you want to analyze a file, run accel_readfile using the folder path of your acceleration files and it will output graphs for the estimated time of each earthquake arrival based on your location as specified in the file. plot_quakes is a fast way of looking at what earthquakes happening while you were recording data for all data files in a folder. Accelplot is more advanced plotting tool using Bokeh to make prettier and more accurate graphs.
