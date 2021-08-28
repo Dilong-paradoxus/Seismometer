@@ -1,14 +1,14 @@
 #This program reads the serial port for a given amount of time, while
 #writing that data to a csv file named according to the starting time
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from time import sleep
 import serial
 import csv
 import os
 
 def serialopen(port):
-    print('opening serial port')
+    print('opening serial port at ' +  portname)
     portopen = [False,0]
     while portopen[0] == False:
         portopen[1] = portopen[1] + 1
@@ -79,23 +79,29 @@ def process_line(data):
         print('unparseable line')
         return
 
-ser = serialopen('/dev/ttyACM0')
-ser.flushInput()
+#seroptions = ['/dev/ttyACM0','COM4'] #set the serial port(s) of your sensor here
+if os.name == 'nt': #windows
+    portname = 'COM4' 
+else: #linux or whatever
+    portname = '/dev/ttyACM0'
+    
+ser = serialopen(portname)
+ser.reset_input_buffer()
 
 #set maximum run time of program
 end_time = datetime.now() + timedelta(days=7)
 
 #set up filename and folder
-starttime = datetime.now().strftime('%Y%m%d_%H%M') #time string
-filename = str(starttime + '_' + 'accel.csv') #concat to file suffix
+starttime = datetime.utcnow().strftime('%Y%m%d_%H%M') #time string
+filename = str(starttime + '_UTC_' + 'accel.csv') #concat to file suffix
 
 #gather data until end_time is reached
 while datetime.now() < end_time:
     waitfordata()
     
     with open(filename,"a") as f:  #write metadata line
-        metadatatime = datetime.now().timestamp()
-        f.write('metadata: PDT' + str(metadatatime) + ', g, ms, Razor IMU, serial \n')
+        metadatatime = datetime.utcnow().timestamp() #get current UTC time
+        f.write('metadata: UTC' + str(metadatatime) + ', g, ms, Razor IMU, serial \n')
         
     decoded_bytes = [] #set decoded_bytes to empty 
     while decoded_bytes != 'reset': #run until 'reset' is received
@@ -111,21 +117,21 @@ while datetime.now() < end_time:
             ser.close() #end serial connection
             print('serial error, retrying')
             sleep(0.5)
-            ser = serialopen('/dev/ttyACM0')
+            ser = serialopen(portname)
             waitfordata()
             starttime = datetime.now().strftime('%Y%m%d_%H%M') #time string
-            filename = str(starttime + '_' + 'accel.csv') #concat to file suffix
+            filename = str(starttime + '_UTC_' + 'accel.csv') #concat to file suffix
             with open(filename,"a") as f:  #write metadata line
-                metadatatime = datetime.now().timestamp()
-                f.write('metadata: PDT' + str(metadatatime) + ', g, ms, Razor IMU, serial \n')
+                metadatatime = datetime.utcnow().timestamp()
+                f.write('metadata: UTC' + str(metadatatime) + ', g, ms, Razor IMU, serial \n')
     
     print('resetting clock')
     
     ser.close() #end serial connection
-    ser = serialopen('/dev/ttyACM0')
+    ser = serialopen(portname)
     
     #reset filename for new file
-    starttime = datetime.now().strftime('%Y%m%d_%H%M') #time string
-    filename = str(starttime + '_' + 'accel.csv') #concat to file suffix
+    starttime = datetime.utcnow().strftime('%Y%m%d_%H%M') #time string
+    filename = str(starttime + '_UTC_' + 'accel.csv') #concat to file suffix
     
 ser.close() #end serial connection
