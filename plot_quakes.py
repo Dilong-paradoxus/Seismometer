@@ -117,8 +117,9 @@ def plotquakes(start,end):
     if timesave == True:
         plt.savefig(urltime + 'earthquakemap.png')
     return(quakelist)
-    
-for file in glob.glob(r"D:\Nick\Python\*.csv"):
+
+#Approximate filesizes
+for file in glob.glob(r"C:\*.csv"):
     sizefile = os.path.getsize(file)/1000
     starttime_s = os.path.getctime(file)
     endtime_s = (sizefile / 14.9) + starttime_s
